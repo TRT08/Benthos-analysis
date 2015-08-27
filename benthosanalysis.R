@@ -17,10 +17,10 @@ library(stringr)
 
 ##########################################################  
 #  RUN THESE FIRST TO GET THE NECESSARY FILES FOR THIS SCRIPT TO RUN ########
-source("F:/DATA/SLBE/R scripts/General Scripts/GobyThemes.R") #Load GGPLOT themes
-source("F:/DATA/SLBE/R scripts/Benthos biomass and frequency/biomassfreqscript.R",echo=TRUE, max.deparse.length=10000)
-source("F:/DATA/SLBE/R scripts/Benthos biomass and frequency/biomass_additional_functions.R")
-setwd("F:/DATA/SLBE/R scripts/Benthos Analysis") #set directory 
+source("F:/DATA/SLBE/R scripts/General-Scripts/GobyThemes.R") #Load GGPLOT themes
+source("biomassfreqscript.R",echo=TRUE, max.deparse.length=10000)
+source("biomass_additional_functions.R")
+setwd("F:/DATA/SLBE/Manuscripts/Benthos-analysis/") #set directory 
 
 #d = CompiledBenthosLogandFreq
 #c = CompiledBenthosLog
@@ -102,7 +102,7 @@ rm(Density, Biomass, cols)
 #make nice graphs with error bars, ala Nalepa by year
 #Mean number of orgs v. month v. site type v. taxon
 
-source("F:/DATA/SLBE/R scripts/General Scripts/summary.R") #gets mean, se, sd, ci
+source("F:/DATA/SLBE/R scripts/General-Scripts/summary.R") #gets mean, se, sd, ci
 
 summ<- summarySE(d, measurevar="Total.Organisms.sum", groupvars=c("TaxonomicGroup", "Month","All.SiteCondition","Depth.m.standard"))  #"All.DepNonDep"
 #summ[is.na(summ)] <- 0
@@ -431,7 +431,7 @@ perma <- adonis(freq ~ DayNum*Depth.m.standard*Year*All.SiteConditionBARE*All.Si
 #REMEMBER that the mussels are all removed from the W-stat calculations
 
 ####PRINT A PLOT FOR EACH YEARSER TO A PDF ########
-somePDFPath = "F:/DATA/SLBE/R scripts/Benthos Analysis/ABCplots.pdf"
+somePDFPath = "F:/DATA/SLBE/Manuscripts/Benthos-analysis/Figs/ABCplots.pdf"
 pdf(file=somePDFPath)
 par(mfrow=c(3,2));
 
@@ -536,3 +536,13 @@ preds <- preds[order(preds$Year,preds$Site,preds$Date), ]
 preds$Pred.Site.Cond <- colnames(preds)[apply(preds[,c("BARE","LIVE","SLOUGHED")],1,which.max)]
 
 #write.csv(preds, "predicted.site.conditions.csv")
+
+##########################################################################
+######Run cluster analysis#########
+
+hclustfunc <- function(x) hclust(x, method="complete")
+distfunc <- function(x) as.dist((1-cor(t(x)))/2)
+
+d <- distfunc(rog_diet2011)
+fit <- hclustfunc(d)
+plot(fit, hang=-1)

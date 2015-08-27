@@ -3,7 +3,7 @@
 ####GETTING STARTED - RUN FIRST ####
 ####################################
 
-setwd("F:/DATA/SLBE/R scripts/Benthos biomass and frequency/")
+setwd("F:/DATA/SLBE/Manuscripts/Benthos-analysis/")
 
 require(reshape) || install.packages("reshape") 
 require(plyr) || install.packages("plyr") 

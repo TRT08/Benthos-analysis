@@ -7,12 +7,12 @@
 ###Last update 9/25/14
 
 ###RUN FIRST###
-setwd("F:/DATA/SLBE/R scripts/Benthos biomass and frequency") #set directory
+setwd("F:/DATA/SLBE/Manuscripts/Benthos-analysis/") #set directory
 logfile <- file("output.log") #creates a backlog of the script activity (look in folder)
 sink(logfile, append=TRUE) 
 sink(logfile, append=TRUE, type="message")
-source("F:/DATA/SLBE/R scripts/Benthos biomass and frequency/biomassfreqscript.R",echo=TRUE, max.deparse.length=10000)
-source("F:/DATA/SLBE/R scripts/Benthos biomass and frequency/biomass_additional_functions.R",echo=TRUE, max.deparse.length=10000)
+source("biomassfreqscript.R",echo=TRUE, max.deparse.length=10000)
+source("biomass_additional_functions.R",echo=TRUE, max.deparse.length=10000)
 
 sink()  # Restore output to console
 sink(type="message")
