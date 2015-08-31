@@ -116,7 +116,10 @@ summ <- summ[!summ$Depth.m.standard == 30,]
 ggplot(summ, aes(x=Month, y=Total.Organisms.sum, group=Depth.m.standard, color=Depth.m.standard)) + 
   geom_errorbar(aes(ymin=Total.Organisms.sum-se, ymax=Total.Organisms.sum+se), width=.5) + geom_point() + Goby_theme +
   geom_line(linetype="dotted") + facet_grid(TaxonomicGroup ~ All.SiteCondition + ., scales="free")+
-  labs(x="Month", y="Mean number of organisms", title="Benthos over time")
+  labs(x="Month", y="Mean number of organisms", title="Benthos over time") +  
+  theme(strip.text.y = element_text(size = 9, angle = 0)) 
+
+ggsave(filename = "F:/DATA/SLBE/Manuscripts/Benthos-analysis/Figs/NumOverTime.png")                                                                        "cm", "mm"), dpi = 300, ...)
 
 ######################################################
 #####Rarefaction curves#####
@@ -199,6 +202,8 @@ ggplot(sum.d3,aes(x=TaxonomicGroup,y=Total.Organisms.sum.sum,fill=TaxonomicGroup
   facet_grid(All.SiteCondition~.,scales="free",space="free") + coord_cartesian(ylim = c(0, 2000)) +
    Goby_theme + theme(axis.text.x=element_text(angle = 90, hjust = 0))
 
+ggsave(filename = "F:/DATA/SLBE/Manuscripts/Benthos-analysis/Figs/NumbySub.png")
+
 #finally, do another test to look at which organisms are very different and which sites are different from eachother
 library(mgcv)
 allyears <- gam(Total.Organisms.sum.sum ~ All.SiteCondition + TaxonomicGroup, data=sum.d3)
@@ -218,60 +223,18 @@ test[is.na(test)] <- 0
 glm.model = glm(Total.Organisms.sum.sum ~ Order * GeneralLoc * Year, data=test, family = poisson)
 anova(glm.model, test="Chisq")
 
-####### Anosim analysis#####################################################
-#WORSE THAN PERMANOVA http://www.esajournals.org/doi/abs/10.1890/12-2010.1
-library(sinkr)
-
-#Get your species data
-freq <- cast(d, YearSER ~ Family, value='Total.Organisms.sum', sum)
-
-#Figure out which environmental vars you want
-names(c)
-environ <- c[,c("YearSER","DayNum","Depth.m.standard","Year","CladRate")]
-
-#"CloudCoverfraction.mean", "ModelWaterLevelmeter.mean",     
-#"WaterVelocityatSurfacems.mean", "DepthAveragedWaterVelocityms.mean","SignificantWaveHeightmeter.mean", "WavePeriodsecond.mean","circ.WavesVelocityDir.mean",                
-#"circ.DAvWaterVelocityDir.mean","circ.WaterVelocityDir.mean"
-
-environSERs <- environ$YearSER[is.na(environ$CladRate)]
-environ<- environ[!is.na(environ$CladRate),]
-freq <- freq[!freq$YearSER %in% environSERs, ]
-
-row.names(environ)<- environ$YearSER
-environ$YearSER<-NULL
-
-row.names(freq)<- freq$YearSER
-freq$YearSER<-NULL
-
-#hist(freq$Dreissenidae, breaks=30, xaxp  = c(0, 1200, 30))
-#environ$HiMussels<- ifelse(freq$Dreissenidae > 50, 1, 0)
-environ$NumMussels <- freq$Dreissenidae
-
-freq <- subset(freq, select = -c(Dreissenidae) )
-
-environ<-data.frame(lapply(environ,as.numeric))
-
-res <- bioEnv(freq, environ,
-              fix.dist.method="bray", var.dist.method="euclidean",
-              scale.fix=FALSE, scale.var=TRUE)
-res
-
-summary(res)
 
 ###############################################################################
 #### NMDS  ####
 #Prep sample for Bray-curtis######
+#freq <- cast(d, All.DepNonDep + YearSER ~ Family, value='Total.Organisms.sum', sum)
 
-freq <- cast(d, All.DepNonDep + Year ~ Family, value='Total.Organisms.sum', sum)
+freq <- cast(d, YearSER ~ Family, value='Total.Organisms.sum', sum)
 
-names(freq)
+#names(freq)
 
 #Remove NA values you don't want
-freq<- freq[!(is.na(freq$All.DepNonDep)), ]
-
-###MAKE TREATMENTS FOR LATER
-#Year<- freq$Year
-All.DepNonDep <- freq$All.DepNonDep
+freq<- freq[!(is.na(freq$YearSER)), ]
 
 #Combine year and site to make sample name
 #freq$Sample <- paste(freq[,1], freq[,2]) #if two vars
@@ -279,8 +242,16 @@ freq$Sample <- freq[,1] #if one var
 
 row.names(freq)<-freq$Sample
 
+####if mussels is a treatment
+#hist(freq$Dreissenidae, breaks=30, xaxp  = c(0, 1200, 30))
+freq$NumMussels <- ifelse(freq$Dreissenidae>50, "LotsofMuss", "FewMuss")
+freq <- subset(freq, select = -c(Dreissenidae) )
+
+###MAKE TREATMENTS FOR LATER
+treat <- freq$NumMussels
+
 ###Choose cols/animals to remove
-freq <- freq[ , -which(names(freq) %in% c("??UPDATE","Fish Egg","All.DepNonDep","Sample"))]
+freq <- freq[ , -which(names(freq) %in% c("NumMussels","??UPDATE","Fish Egg","Sample","YearSER"))]
 
 #Remove any columns that are all zeroes
 freq <- freq[, colSums(freq == 0) != nrow(freq)] 
@@ -303,12 +274,15 @@ plot(freq.mds) #plots the ordination axes
 points(freq.mds, display = c("sites", "species"))#displays both sites and species on the same plot.  
 text(freq.mds, display = c("sites", "species"))
 
-treat <- Predominant.Benthic.Class
 ordiplot(freq.mds,type="n")
 ordihull(freq.mds,groups=treat,draw="polygon",col="grey90", label=T)
 orditorp(freq.mds,display="species",col="red",air=0.01)
+
+#add the sample labels#
 orditorp(freq.mds,display="sites",col=c(rep("green",5),rep("blue",5)),
          air=0.01,cex=1.25)
+
+####NMDS using mussels as the treatment
 
 ####################   PERMANOVA    ####################
 
@@ -372,7 +346,7 @@ ordispider(meta12,group=fac)
 par(opar)
 
 
-
+#################################################
 
 #Get your species data
 freq <- cast(d, YearSER ~ Family, value='Total.Organisms.sum', sum)
@@ -546,3 +520,43 @@ distfunc <- function(x) as.dist((1-cor(t(x)))/2)
 d <- distfunc(rog_diet2011)
 fit <- hclustfunc(d)
 plot(fit, hang=-1)
+
+####### Anosim analysis#####################################################
+#WORSE THAN PERMANOVA http://www.esajournals.org/doi/abs/10.1890/12-2010.1
+library(sinkr)
+
+#Get your species data
+freq <- cast(d, YearSER ~ Family, value='Total.Organisms.sum', sum)
+
+#Figure out which environmental vars you want
+names(c)
+environ <- c[,c("YearSER","DayNum","Depth.m.standard","Year","CladRate")]
+
+#"CloudCoverfraction.mean", "ModelWaterLevelmeter.mean",     
+#"WaterVelocityatSurfacems.mean", "DepthAveragedWaterVelocityms.mean","SignificantWaveHeightmeter.mean", "WavePeriodsecond.mean","circ.WavesVelocityDir.mean",                
+#"circ.DAvWaterVelocityDir.mean","circ.WaterVelocityDir.mean"
+
+environSERs <- environ$YearSER[is.na(environ$CladRate)]
+environ<- environ[!is.na(environ$CladRate),]
+freq <- freq[!freq$YearSER %in% environSERs, ]
+
+row.names(environ)<- environ$YearSER
+environ$YearSER<-NULL
+
+row.names(freq)<- freq$YearSER
+freq$YearSER<-NULL
+
+#hist(freq$Dreissenidae, breaks=30, xaxp  = c(0, 1200, 30))
+#environ$HiMussels<- ifelse(freq$Dreissenidae > 50, 1, 0)
+environ$NumMussels <- freq$Dreissenidae
+
+freq <- subset(freq, select = -c(Dreissenidae) )
+
+environ<-data.frame(lapply(environ,as.numeric))
+
+res <- bioEnv(freq, environ,
+              fix.dist.method="bray", var.dist.method="euclidean",
+              scale.fix=FALSE, scale.var=TRUE)
+res
+
+summary(res)
