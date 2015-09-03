@@ -29,6 +29,22 @@ setwd("F:/DATA/SLBE/Manuscripts/Benthos-analysis/") #set directory
 #table(d$Habitat)
 d <- d[d$Habitat %in% c("Benthic", "Epibenthic", "Migrator"),]
 
+###REMOVE ALL THE SMALL ANIMALS FROM THE BENTHOS####
+###REMOVE ALL THOSE WITH AVERAGE LENGTH LESS THAN 500 um### OUR SIEVE SIZE###
+###also remove oribatid mites bc they are fossils###
+
+lengths <- aggregate(  mm.length ~ Taxon, NA.omit.biomass, mean )
+lengths[lengths$mm.length < 1, ]
+
+d <- subset(d, !Taxon %in% c("Chydorus", "Nauplii", "Tardigrade", "Veliger", "Macrothrix", 
+                             "Water Mite - Oribatid TL","Fish Egg"))
+
+d$Taxon <- droplevels(d$Taxon)
+
+#REMOVE LATER ONCE MITES ARE ID
+d$Family[d$Family == "??UPDATE"] <- "Hydrachnidiae"
+
+
 ###Convert ponar area to meters squared
 #Ponar width: 9inx9in, 22.86cmx22.86c
 #ponar area: 522.5796 cm2
@@ -227,34 +243,43 @@ anova(glm.model, test="Chisq")
 ###############################################################################
 #### NMDS  ####
 #Prep sample for Bray-curtis######
-#freq <- cast(d, All.DepNonDep + YearSER ~ Family, value='Total.Organisms.sum', sum)
 
-freq <- cast(d, YearSER ~ Family, value='Total.Organisms.sum', sum)
+#CHANGE THESE VALUES#
 
-#names(freq)
+TaxonLevel <- "Family"
 
-#Remove NA values you don't want
-freq<- freq[!(is.na(freq$YearSER)), ]
+PredictorVariables <-  c("Depth.m.standard","All.DepNonDep", "YearSER") #YearSER should always be here
+  
+#######################################################
+#NM <- function(PredictorVariables){}
 
-#Combine year and site to make sample name
-#freq$Sample <- paste(freq[,1], freq[,2]) #if two vars
-freq$Sample <- freq[,1] #if one var
+Form <- paste(paste(PredictorVariables, collapse="+"), paste("~"), paste(TaxonLevel))
+Form <- formula(Form)
+freq <- cast(d, Form, value='Total.Organisms.sum', sum)
 
-row.names(freq)<-freq$Sample
+row.names(freq) <- freq$YearSER 
+freq$YearSER <- NULL
 
 ####if mussels is a treatment
 #hist(freq$Dreissenidae, breaks=30, xaxp  = c(0, 1200, 30))
-freq$NumMussels <- ifelse(freq$Dreissenidae>50, "LotsofMuss", "FewMuss")
-freq <- subset(freq, select = -c(Dreissenidae) )
+#freq$NumMussels <- ifelse(freq$Dreissenidae>50, "LotsofMuss", "FewMuss")
+#freq <- subset(freq, select = -c(Dreissenidae) )
+#append(PredictorVariables, "NumMussels")
 
 ###MAKE TREATMENTS FOR LATER
-treat <- freq$NumMussels
+Treatments <- list()
+for(i in PredictorVariables){
+  Treatments[[i]] <- freq[[i]]
+}
 
 ###Choose cols/animals to remove
-freq <- freq[ , -which(names(freq) %in% c("NumMussels","??UPDATE","Fish Egg","Sample","YearSER"))]
+freq <- freq[ , -which(names(freq) %in% PredictorVariables)]
 
 #Remove any columns that are all zeroes
 freq <- freq[, colSums(freq == 0) != nrow(freq)] 
+
+##TRANSFORM THE DATA##
+freq[] <- lapply(freq, sqrt) 
 
 freq_mat<- data.matrix(freq) #######VERY IMPORTANT###CONVERT DATAFRAME TO MATRIX!!!!!#######
 
@@ -274,15 +299,17 @@ plot(freq.mds) #plots the ordination axes
 points(freq.mds, display = c("sites", "species"))#displays both sites and species on the same plot.  
 text(freq.mds, display = c("sites", "species"))
 
+for(i in names(Treatments)){
 ordiplot(freq.mds,type="n")
-ordihull(freq.mds,groups=treat,draw="polygon",col="grey90", label=T)
+ordihull(freq.mds,groups=Treatments[[i]],draw="polygon",col="grey90", label=T)
 orditorp(freq.mds,display="species",col="red",air=0.01)
+title(names(Treatments[i]))
+}
 
 #add the sample labels#
-orditorp(freq.mds,display="sites",col=c(rep("green",5),rep("blue",5)),
-         air=0.01,cex=1.25)
-
-####NMDS using mussels as the treatment
+#orditorp(freq.mds,display="sites",col=c(rep("green",5),rep("blue",5)), air=0.01,cex=1.25)
+#ordiellipse(fish.mds2,spplist$NETTYPE)
+#ordicentroid(fish.mds2,spplist$NETTYPE)
 
 ####################   PERMANOVA    ####################
 
